@@ -6,6 +6,15 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/browser"
 import type { User } from "@supabase/supabase-js"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { LogOut, UserIcon } from "lucide-react"
 
 export default function Header() {
   const [user, setUser] = useState<User | null>(null)
@@ -90,21 +99,38 @@ export default function Header() {
         <div className="flex items-center space-x-4">
           {!loading &&
             (user ? (
-              <>
-                <span className="hidden text-sm md:inline-block">Hello, {user.email?.split("@")[0]}</span>
-                <Button variant="ghost" size="sm" onClick={handleSignOut} className="hidden md:inline-flex">
-                  Sign Out
-                </Button>
-              </>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src="/placeholder.svg?height=32&width=32" alt={user.email || "User"} />
+                      <AvatarFallback>{user.email?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <div className="flex flex-col space-y-1 p-2">
+                    <p className="text-sm font-medium leading-none">{user.email?.split("@")[0]}</p>
+                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile" className="flex w-full cursor-pointer items-center">
+                      <UserIcon className="mr-2 h-4 w-4" />
+                      <span>Profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
-              <>
-                <Button variant="ghost" size="sm" asChild className="hidden md:inline-flex">
-                  <Link href="/login">Sign In</Link>
-                </Button>
-                <Button size="sm" asChild>
-                  <Link href="/signup">Sign Up</Link>
-                </Button>
-              </>
+              <Button size="sm" asChild>
+                <Link href="/login">Sign In</Link>
+              </Button>
             ))}
           <Button variant="ghost" size="icon" className="md:hidden">
             <svg
