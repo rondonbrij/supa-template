@@ -5,17 +5,15 @@ import type React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, Loader2 } from "lucide-react"
+// Import the DateInput component
+import { DateInput } from "@/components/ui/date-input"
+import { Loader2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
-import { cn } from "@/lib/utils"
 
 export default function SignupForm() {
   const [email, setEmail] = useState("")
@@ -182,31 +180,17 @@ export default function SignupForm() {
 
           <div className="space-y-2">
             <Label htmlFor="birthDate">Date of Birth</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  id="birthDate"
-                  variant={"outline"}
-                  className={cn("w-full justify-start text-left font-normal", !birthDate && "text-muted-foreground")}
-                >
-                  {birthDate ? format(birthDate, "PPP") : <span>Pick a date</span>}
-                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={birthDate}
-                  onSelect={setBirthDate}
-                  disabled={(date) => {
-                    const today = new Date()
-                    const eighteenYearsAgo = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
-                    return date > eighteenYearsAgo || date < new Date(1900, 0, 1)
-                  }}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <DateInput
+              value={birthDate}
+              onChange={setBirthDate}
+              disabledDates={(date) => {
+                const today = new Date()
+                const eighteenYearsAgo = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
+                return date > eighteenYearsAgo || date < new Date(1900, 0, 1)
+              }}
+              minYear={1900}
+              maxYear={new Date().getFullYear() - 18}
+            />
             <p className="text-xs text-muted-foreground">You must be at least 18 years old to create an account.</p>
           </div>
 
