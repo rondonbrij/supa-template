@@ -30,7 +30,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Featured Destinations */}
+        {/* Featured Destinations
         <section className="py-16">
           <div className="container mx-auto px-4">
             <h2 className="mb-12 text-center text-3xl font-bold">Popular Destinations</h2>
@@ -60,7 +60,7 @@ export default function Home() {
               ))}
             </div>
           </div>
-        </section>
+        </section> */}
 
         {/* Why Choose Us */}
         <section className="bg-gray-50 py-16">

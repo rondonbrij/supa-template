@@ -1,63 +1,124 @@
 "use client"
 
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon } from "lucide-react"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Check, ChevronsUpDown, Search, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { format } from "date-fns"
-import { useState } from "react"
+import { createClient } from "@/lib/supabase/browser"
+
+type Destination = {
+  id: string
+  name: string
+}
 
 export default function SearchBar() {
-  const [checkIn, setCheckIn] = useState<Date>()
-  const [checkOut, setCheckOut] = useState<Date>()
+  const [open, setOpen] = useState(false)
+  const [value, setValue] = useState("")
+  const [destinations, setDestinations] = useState<Destination[]>([])
+  const [loading, setLoading] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const inputRef = useRef<HTMLDivElement>(null)
+  const supabase = createClient()
+
+  // Fetch destinations only once when component mounts
+  useEffect(() => {
+    async function fetchDestinations() {
+      setLoading(true)
+      try {
+        const { data, error } = await supabase.from("destinations").select("id, name").order("name")
+
+        if (error) {
+          console.error("Error fetching destinations:", error)
+          return
+        }
+
+        setDestinations(data || [])
+      } catch (error) {
+        console.error("Error fetching destinations:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDestinations()
+  }, [supabase])
+
+  // Filter destinations based on search term
+  const filteredDestinations = searchTerm
+    ? destinations.filter((dest) => dest.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    : destinations
 
   return (
     <div className="rounded-lg bg-white p-4 shadow-lg">
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="space-y-4">
         <div className="space-y-2">
           <label htmlFor="destination" className="text-sm font-medium">
-            Destination
+            Where are you going?
           </label>
-          <Input id="destination" placeholder="Where are you going?" className="h-10" />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Check-in</label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn("h-10 w-full justify-start text-left font-normal", !checkIn && "text-muted-foreground")}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {checkIn ? format(checkIn, "PPP") : "Select date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar mode="single" selected={checkIn} onSelect={setCheckIn} initialFocus />
-            </PopoverContent>
-          </Popover>
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Check-out</label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn("h-10 w-full justify-start text-left font-normal", !checkOut && "text-muted-foreground")}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {checkOut ? format(checkOut, "PPP") : "Select date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar mode="single" selected={checkOut} onSelect={setCheckOut} initialFocus />
-            </PopoverContent>
-          </Popover>
-        </div>
-        <div className="flex items-end">
-          <Button className="h-10 w-full">Search</Button>
+          <div className="relative" ref={inputRef}>
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={open}
+                  aria-label="Select a destination"
+                  className="w-full justify-between h-10 font-normal text-left"
+                  onClick={() => setOpen(!open)}
+                >
+                  <span className="truncate">
+                    {value
+                      ? destinations.find((destination) => destination.name === value)?.name
+                      : "Search for a destination..."}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0 shadow-lg" style={{ width: inputRef.current?.clientWidth }} align="start">
+                <Command shouldFilter={false}>
+                  <CommandInput
+                    placeholder="Search for a destination..."
+                    className="h-9"
+                    value={searchTerm}
+                    onValueChange={setSearchTerm}
+                  />
+                  <CommandList>
+                    <CommandEmpty>
+                      {loading ? (
+                        <div className="flex items-center justify-center py-6">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          <span>Loading destinations...</span>
+                        </div>
+                      ) : (
+                        "No destination found."
+                      )}
+                    </CommandEmpty>
+                    <CommandGroup heading="Destinations">
+                      {filteredDestinations.map((destination) => (
+                        <CommandItem
+                          key={destination.id}
+                          value={destination.name}
+                          onSelect={(currentValue) => {
+                            setValue(currentValue === value ? "" : currentValue)
+                            setOpen(false)
+                            setSearchTerm("")
+                          }}
+                        >
+                          <Check
+                            className={cn("mr-2 h-4 w-4", value === destination.name ? "opacity-100" : "opacity-0")}
+                          />
+                          {destination.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            <Search className="absolute right-3 top-2.5 h-5 w-5 text-muted-foreground pointer-events-none" />
+          </div>
         </div>
       </div>
     </div>
