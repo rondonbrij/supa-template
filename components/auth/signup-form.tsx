@@ -109,6 +109,11 @@ export default function SignupForm() {
       }
 
       setMessage("Check your email for the confirmation link")
+
+      // Redirect to main page after 3 seconds
+      setTimeout(() => {
+        router.push("/")
+      }, 3000)
     } catch (err) {
       setError("An unexpected error occurred")
       console.error(err)

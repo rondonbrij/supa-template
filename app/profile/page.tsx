@@ -14,8 +14,16 @@ export default async function ProfilePage() {
     redirect("/login")
   }
 
-  // Fetch passenger profile if it exists
-  const { data: passenger } = await supabase.from("passengers").select("*").eq("auth_id", session.user.id).single()
+  // Fetch passenger profile from the passengers table
+  const { data: passenger, error } = await supabase
+    .from("passengers")
+    .select("*")
+    .eq("auth_id", session.user.id)
+    .single()
+
+  if (error) {
+    console.error("Error fetching passenger profile:", error)
+  }
 
   return (
     <div className="container mx-auto py-10">
