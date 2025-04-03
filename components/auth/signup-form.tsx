@@ -194,17 +194,69 @@ export default function SignupForm() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={birthDate}
-                  onSelect={setBirthDate}
-                  disabled={(date) => {
-                    const today = new Date()
-                    const eighteenYearsAgo = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
-                    return date > eighteenYearsAgo || date < new Date(1900, 0, 1)
-                  }}
-                  initialFocus
-                />
+                <div className="flex flex-col space-y-4 p-2">
+                  <div className="flex justify-between">
+                    <select
+                      value={birthDate ? birthDate.getFullYear() : new Date().getFullYear() - 30}
+                      onChange={(e) => {
+                        const year = Number.parseInt(e.target.value)
+                        const newDate = birthDate ? new Date(birthDate) : new Date()
+                        newDate.setFullYear(year)
+                        setBirthDate(newDate)
+                      }}
+                      className="px-2 py-1 border rounded-md text-sm"
+                    >
+                      {Array.from({ length: 100 }, (_, i) => {
+                        const year = new Date().getFullYear() - 18 - i
+                        return (
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
+                        )
+                      })}
+                    </select>
+                    <select
+                      value={birthDate ? birthDate.getMonth() : 0}
+                      onChange={(e) => {
+                        const month = Number.parseInt(e.target.value)
+                        const newDate = birthDate ? new Date(birthDate) : new Date()
+                        newDate.setMonth(month)
+                        setBirthDate(newDate)
+                      }}
+                      className="px-2 py-1 border rounded-md text-sm"
+                    >
+                      {[
+                        "January",
+                        "February",
+                        "March",
+                        "April",
+                        "May",
+                        "June",
+                        "July",
+                        "August",
+                        "September",
+                        "October",
+                        "November",
+                        "December",
+                      ].map((month, index) => (
+                        <option key={month} value={index}>
+                          {month}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <Calendar
+                    mode="single"
+                    selected={birthDate}
+                    onSelect={setBirthDate}
+                    disabled={(date) => {
+                      const today = new Date()
+                      const eighteenYearsAgo = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
+                      return date > eighteenYearsAgo || date < new Date(1900, 0, 1)
+                    }}
+                    initialFocus
+                  />
+                </div>
               </PopoverContent>
             </Popover>
             <p className="text-xs text-muted-foreground">You must be at least 18 years old to create an account.</p>
