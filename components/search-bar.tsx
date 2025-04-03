@@ -7,6 +7,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, ChevronsUpDown, Search, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/browser"
+import { useRouter } from "next/navigation"
 
 type Destination = {
   id: string
@@ -21,13 +22,13 @@ export default function SearchBar() {
   const [searchTerm, setSearchTerm] = useState("")
   const inputRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
+  const router = useRouter()
 
   // Fetch destinations only once when component mounts
   useEffect(() => {
     async function fetchDestinations() {
       setLoading(true)
       try {
-        // Use the service role client to bypass RLS
         const { data, error } = await supabase.from("destinations").select("id, name").order("name")
 
         if (error) {
@@ -105,6 +106,7 @@ export default function SearchBar() {
                             setValue(currentValue === value ? "" : currentValue)
                             setOpen(false)
                             setSearchTerm("")
+                            router.push(`/trips/${destination.id}`)
                           }}
                         >
                           <Check
