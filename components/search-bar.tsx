@@ -27,6 +27,7 @@ export default function SearchBar() {
     async function fetchDestinations() {
       setLoading(true)
       try {
+        // Use the service role client to bypass RLS
         const { data, error } = await supabase.from("destinations").select("id, name").order("name")
 
         if (error) {
