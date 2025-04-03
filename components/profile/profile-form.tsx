@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -54,7 +54,21 @@ export default function ProfileForm({ initialData, userId, userEmail }: ProfileF
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues,
+    mode: "onChange", // Trigger validation on change
   })
+
+  // Use useEffect to set the form values after initialData is loaded
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        firstName: initialData.first_name || "",
+        lastName: initialData.last_name || "",
+        email: userEmail || "",
+        phone: initialData.phone || "",
+        birthDate: initialData.birth_date ? new Date(initialData.birth_date) : undefined,
+      })
+    }
+  }, [initialData, userEmail, form])
 
   async function onSubmit(data: ProfileFormValues) {
     setIsLoading(true)
@@ -154,7 +168,7 @@ export default function ProfileForm({ initialData, userId, userEmail }: ProfileF
               <FormItem>
                 <FormLabel>Phone Number (Optional)</FormLabel>
                 <FormControl>
-                  <Input placeholder="+1234567890" {...field} value={field.value || ""} />
+                  <Input placeholder="+1234567890" {...field} />
                 </FormControl>
                 <FormDescription>Enter your phone number in international format.</FormDescription>
                 <FormMessage />

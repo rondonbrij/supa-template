@@ -35,7 +35,7 @@ export default async function ProfilePage() {
           <CardDescription>Update your personal details and contact information</CardDescription>
         </CardHeader>
         <CardContent>
-          <ProfileForm initialData={passenger} userId={session.user.id} userEmail={session.user.email} />
+          <ProfileForm initialData={passenger} userId={session.user.id} userEmail={session.user.email || ""} />
         </CardContent>
       </Card>
     </div>
