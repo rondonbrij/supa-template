@@ -1,17 +1,20 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { Badge } from "@/components/ui/badge"
+
+import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/browser"
 import Header from "@/components/header"
 import { BusLayout } from "@/components/seat-selection/bus-layout"
 import { VanLayout } from "@/components/seat-selection/van-layout"
-import { PassengerForm, type PassengerFormHandles } from "@/components/seat-selection/passenger-form"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Seat, PassengerDetails } from "@/types/seat-types"
 import { generateBookingCode } from "@/lib/utils"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { PassengerFormModal } from "@/components/seat-selection/passenger-form-modal"
+import { PassengerCard } from "@/components/seat-selection/passenger-card"
 
 export default function SeatSelectionPage() {
   const params = useParams()
@@ -22,14 +25,17 @@ export default function SeatSelectionPage() {
   const [vehicleType, setVehicleType] = useState<"BUS" | "VAN">("BUS")
   const [seats, setSeats] = useState<Seat[]>([])
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([])
-  const [passengers, setPassengers] = useState<PassengerDetails[]>([])
+  const [passengerDetails, setPassengerDetails] = useState<Record<number, PassengerDetails>>({})
   const [farePerSeat, setFarePerSeat] = useState<number>(0)
   const [bookedSeats, setBookedSeats] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Store refs to each PassengerForm
-  const passengerFormRefs = useRef<Map<number, PassengerFormHandles>>(new Map())
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [currentSeat, setCurrentSeat] = useState<number | null>(null)
+  const [currentPassengerNumber, setCurrentPassengerNumber] = useState(1)
+  const [isEditing, setIsEditing] = useState(false)
 
   const supabase = createClient()
 
@@ -127,21 +133,76 @@ export default function SeatSelectionPage() {
   const handleSeatClick = (clickedSeat: Seat) => {
     if (clickedSeat.status === "booked") return
 
-    let updatedSeats: Seat[] = []
-    let updatedSelectedSeats: Seat[] = []
-
-    if (clickedSeat.status === "selected") {
-      // Deselect the seat
-      updatedSeats = seats.map((seat) => (seat.id === clickedSeat.id ? { ...seat, status: "available" } : seat))
-      updatedSelectedSeats = selectedSeats.filter((seat) => seat.id !== clickedSeat.id)
-    } else {
-      // Select the seat
-      updatedSeats = seats.map((seat) => (seat.id === clickedSeat.id ? { ...seat, status: "selected" } : seat))
-      updatedSelectedSeats = [...selectedSeats, { ...clickedSeat, status: "selected" }]
+    // If the seat is already selected and has passenger details, open edit modal
+    if (clickedSeat.status === "selected" && passengerDetails[clickedSeat.number]) {
+      setCurrentSeat(clickedSeat.number)
+      setIsEditing(true)
+      setIsModalOpen(true)
+      return
     }
+
+    // If the seat is already selected but doesn't have passenger details, deselect it
+    if (clickedSeat.status === "selected") {
+      const updatedSeats = seats.map((seat) => (seat.id === clickedSeat.id ? { ...seat, status: "available" } : seat))
+      const updatedSelectedSeats = selectedSeats.filter((seat) => seat.id !== clickedSeat.id)
+
+      setSeats(updatedSeats)
+      setSelectedSeats(updatedSelectedSeats)
+
+      // Remove passenger details if any
+      const updatedPassengerDetails = { ...passengerDetails }
+      delete updatedPassengerDetails[clickedSeat.number]
+      setPassengerDetails(updatedPassengerDetails)
+
+      return
+    }
+
+    // If the seat is available, select it and open the modal
+    const updatedSeats = seats.map((seat) => (seat.id === clickedSeat.id ? { ...seat, status: "selected" } : seat))
+    const updatedSelectedSeats = [...selectedSeats, { ...clickedSeat, status: "selected" }]
 
     setSeats(updatedSeats)
     setSelectedSeats(updatedSelectedSeats)
+
+    // Open modal to enter passenger details
+    setCurrentSeat(clickedSeat.number)
+    setCurrentPassengerNumber(updatedSelectedSeats.length)
+    setIsEditing(false)
+    setIsModalOpen(true)
+  }
+
+  const handleModalClose = () => {
+    setIsModalOpen(false)
+
+    // If we were adding a new passenger and canceled, deselect the seat
+    if (!isEditing && currentSeat && !passengerDetails[currentSeat]) {
+      const updatedSeats = seats.map((seat) => (seat.number === currentSeat ? { ...seat, status: "available" } : seat))
+      const updatedSelectedSeats = selectedSeats.filter((seat) => seat.number !== currentSeat)
+
+      setSeats(updatedSeats)
+      setSelectedSeats(updatedSelectedSeats)
+    }
+
+    setCurrentSeat(null)
+  }
+
+  const handleSavePassenger = (data: PassengerDetails) => {
+    if (!currentSeat) return
+
+    // Save passenger details
+    setPassengerDetails((prev) => ({
+      ...prev,
+      [currentSeat]: data,
+    }))
+
+    setIsModalOpen(false)
+    setCurrentSeat(null)
+  }
+
+  const handleEditPassenger = (seatNumber: number) => {
+    setCurrentSeat(seatNumber)
+    setIsEditing(true)
+    setIsModalOpen(true)
   }
 
   const handleContinue = async () => {
@@ -150,29 +211,10 @@ export default function SeatSelectionPage() {
       return
     }
 
-    let allFormsValid = true
-    const passengersData: PassengerDetails[] = []
-
-    // Validate all forms
-    for (const seat of selectedSeats) {
-      const formRef = passengerFormRefs.current.get(seat.number)
-      if (formRef) {
-        const isValid = await formRef.trigger()
-        if (isValid) {
-          const values = formRef.getValues()
-          passengersData.push({
-            ...values,
-            birthday: values.birthday,
-            seatNumber: seat.number,
-          })
-        } else {
-          allFormsValid = false
-        }
-      }
-    }
-
-    if (!allFormsValid) {
-      alert("Please fill in all required fields correctly.")
+    // Check if all selected seats have passenger details
+    const missingDetails = selectedSeats.some((seat) => !passengerDetails[seat.number])
+    if (missingDetails) {
+      alert("Please fill in passenger details for all selected seats.")
       return
     }
 
@@ -199,17 +241,18 @@ export default function SeatSelectionPage() {
       if (bookingError) throw bookingError
 
       // Create passenger_info records for each passenger
-      const passengerPromises = passengersData.map((passenger) =>
-        supabase.from("passenger_info").insert({
+      const passengerPromises = selectedSeats.map((seat) => {
+        const passenger = passengerDetails[seat.number]
+        return supabase.from("passenger_info").insert({
           booking_id: bookingData.id,
           first_name: passenger.firstName,
           last_name: passenger.lastName,
           email: passenger.email || null,
           contact_number: passenger.phoneNumber,
           birthday: passenger.birthday,
-          seat_number: passenger.seatNumber.toString(),
-        }),
-      )
+          seat_number: seat.number.toString(),
+        })
+      })
 
       await Promise.all(passengerPromises)
 
@@ -221,7 +264,7 @@ export default function SeatSelectionPage() {
           bookingCode,
           tripId,
           selectedSeats,
-          passengers: passengersData,
+          passengers: Object.values(passengerDetails),
           farePerSeat,
           totalAmount: selectedSeats.length * farePerSeat,
           tripDetails: {
@@ -292,24 +335,52 @@ export default function SeatSelectionPage() {
             <CardContent className="space-y-4">
               {selectedSeats.length > 0 ? (
                 <>
-                  {selectedSeats.map((seat, index) => (
-                    <PassengerForm
-                      key={seat.id}
-                      passengerNumber={index + 1}
-                      seatNumber={seat.number}
-                      ref={(ref) => {
-                        if (ref) {
-                          passengerFormRefs.current.set(seat.number, ref)
-                        } else {
-                          passengerFormRefs.current.delete(seat.number)
-                        }
-                      }}
-                    />
-                  ))}
+                  <div className="space-y-4">
+                    {selectedSeats.map((seat, index) => {
+                      const passenger = passengerDetails[seat.number]
+                      return passenger ? (
+                        <PassengerCard
+                          key={seat.id}
+                          passenger={passenger}
+                          index={index}
+                          onEdit={() => handleEditPassenger(seat.number)}
+                        />
+                      ) : (
+                        <Card key={seat.id}>
+                          <CardContent className="p-4">
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold">Passenger {index + 1}</h3>
+                                <Badge variant="secondary" className="bg-yellow-500 text-white">
+                                  Seat {seat.number}
+                                </Badge>
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setCurrentSeat(seat.number)
+                                  setCurrentPassengerNumber(index + 1)
+                                  setIsEditing(false)
+                                  setIsModalOpen(true)
+                                }}
+                              >
+                                Add Details
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
                   <div className="border rounded-lg p-4 space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Fare per seat:</span>
                       <span>₱ {farePerSeat.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Number of passengers:</span>
+                      <span>{selectedSeats.length}</span>
                     </div>
                     <div className="flex justify-between font-bold">
                       <span>Total:</span>
@@ -331,6 +402,19 @@ export default function SeatSelectionPage() {
           </Card>
         </div>
       </div>
+
+      {/* Passenger Form Modal */}
+      {currentSeat !== null && (
+        <PassengerFormModal
+          isOpen={isModalOpen}
+          onClose={handleModalClose}
+          onSave={handleSavePassenger}
+          seatNumber={currentSeat}
+          passengerNumber={currentPassengerNumber}
+          initialData={isEditing ? passengerDetails[currentSeat] : undefined}
+          isEditing={isEditing}
+        />
+      )}
     </>
   )
 }

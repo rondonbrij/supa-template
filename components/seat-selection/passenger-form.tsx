@@ -1,6 +1,6 @@
 "use client"
 
-import { forwardRef, useImperativeHandle } from "react"
+import { forwardRef, useImperativeHandle, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -25,6 +25,7 @@ type PassengerFormValues = z.infer<typeof passengerSchema>
 interface PassengerFormProps {
   passengerNumber: number
   seatNumber: number
+  initialData?: any
 }
 
 export interface PassengerFormHandles {
@@ -33,18 +34,32 @@ export interface PassengerFormHandles {
 }
 
 export const PassengerForm = forwardRef<PassengerFormHandles, PassengerFormProps>(
-  ({ passengerNumber, seatNumber }, ref) => {
+  ({ passengerNumber, seatNumber, initialData }, ref) => {
     const form = useForm<PassengerFormValues>({
       resolver: zodResolver(passengerSchema),
       defaultValues: {
-        firstName: "",
-        lastName: "",
-        email: "",
-        phoneNumber: "",
-        birthday: "",
+        firstName: initialData?.firstName || "",
+        lastName: initialData?.lastName || "",
+        email: initialData?.email || "",
+        phoneNumber: initialData?.phoneNumber || "",
+        birthday: initialData?.birthday || "",
         seatNumber: seatNumber,
       },
     })
+
+    // Update form values when initialData changes
+    useEffect(() => {
+      if (initialData) {
+        form.reset({
+          firstName: initialData.firstName || "",
+          lastName: initialData.lastName || "",
+          email: initialData.email || "",
+          phoneNumber: initialData.phoneNumber || "",
+          birthday: initialData.birthday || "",
+          seatNumber: seatNumber,
+        })
+      }
+    }, [initialData, form, seatNumber])
 
     // Expose form methods to parent via ref
     useImperativeHandle(ref, () => ({
@@ -54,7 +69,7 @@ export const PassengerForm = forwardRef<PassengerFormHandles, PassengerFormProps
 
     return (
       <Form {...form}>
-        <form className="space-y-4 border rounded-lg p-4">
+        <form className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="font-semibold">Passenger {passengerNumber}</h3>
             <Badge variant="secondary" className="bg-green-500 text-white">
@@ -151,4 +166,3 @@ export const PassengerForm = forwardRef<PassengerFormHandles, PassengerFormProps
 )
 
 PassengerForm.displayName = "PassengerForm"
-
