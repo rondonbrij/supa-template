@@ -1,6 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import React from "react"
+
+import { useRef } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { PassengerForm, type PassengerFormHandles } from "@/components/seat-selection/passenger-form"
@@ -25,17 +27,17 @@ export function PassengerFormModal({
   initialData,
   isEditing = false,
 }: PassengerFormModalProps) {
-  const [formRef, setFormRef] = useState<PassengerFormHandles | null>(null)
-  const [isSaving, setIsSaving] = useState(false)
+  const formRef = useRef<PassengerFormHandles | null>(null)
+  const [isSaving, setIsSaving] = React.useState(false)
 
   const handleSave = async () => {
-    if (!formRef) return
+    if (!formRef.current) return
 
     setIsSaving(true)
-    const isValid = await formRef.trigger()
+    const isValid = await formRef.current.trigger()
 
     if (isValid) {
-      const values = formRef.getValues()
+      const values = formRef.current.getValues()
       onSave({
         ...values,
         seatNumber,
@@ -45,7 +47,12 @@ export function PassengerFormModal({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose()
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Edit Passenger Details" : "Enter Passenger Details"}</DialogTitle>
@@ -54,11 +61,7 @@ export function PassengerFormModal({
           <PassengerForm
             passengerNumber={passengerNumber}
             seatNumber={seatNumber}
-            ref={(ref) => {
-              if (ref) {
-                setFormRef(ref)
-              }
-            }}
+            ref={formRef}
             initialData={initialData}
           />
         </div>

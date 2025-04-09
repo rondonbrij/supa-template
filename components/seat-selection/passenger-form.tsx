@@ -14,7 +14,7 @@ const phoneRegex = /^(\+63|0)[0-9]{10}$/
 const passengerSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
-  email: z.string().email().optional(),
+  email: z.string().email().optional().or(z.literal("")),
   phoneNumber: z.string().regex(phoneRegex, "Invalid phone number format"),
   birthday: z.string().refine((date) => !isNaN(Date.parse(date)), "Invalid date"),
   seatNumber: z.number(),
@@ -116,7 +116,7 @@ export const PassengerForm = forwardRef<PassengerFormHandles, PassengerFormProps
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel>Email (Optional)</FormLabel>
                 <FormControl>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-500" />

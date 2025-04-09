@@ -1,7 +1,5 @@
 "use client"
 
-import { Badge } from "@/components/ui/badge"
-
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/browser"
@@ -10,6 +8,7 @@ import { BusLayout } from "@/components/seat-selection/bus-layout"
 import { VanLayout } from "@/components/seat-selection/van-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import type { Seat, PassengerDetails } from "@/types/seat-types"
 import { generateBookingCode } from "@/lib/utils"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -168,7 +167,11 @@ export default function SeatSelectionPage() {
     setCurrentSeat(clickedSeat.number)
     setCurrentPassengerNumber(updatedSelectedSeats.length)
     setIsEditing(false)
-    setIsModalOpen(true)
+
+    // Use setTimeout to avoid the infinite loop
+    setTimeout(() => {
+      setIsModalOpen(true)
+    }, 0)
   }
 
   const handleModalClose = () => {
@@ -202,7 +205,11 @@ export default function SeatSelectionPage() {
   const handleEditPassenger = (seatNumber: number) => {
     setCurrentSeat(seatNumber)
     setIsEditing(true)
-    setIsModalOpen(true)
+
+    // Use setTimeout to avoid the infinite loop
+    setTimeout(() => {
+      setIsModalOpen(true)
+    }, 0)
   }
 
   const handleContinue = async () => {
@@ -362,7 +369,9 @@ export default function SeatSelectionPage() {
                                   setCurrentSeat(seat.number)
                                   setCurrentPassengerNumber(index + 1)
                                   setIsEditing(false)
-                                  setIsModalOpen(true)
+                                  setTimeout(() => {
+                                    setIsModalOpen(true)
+                                  }, 0)
                                 }}
                               >
                                 Add Details
@@ -404,7 +413,7 @@ export default function SeatSelectionPage() {
       </div>
 
       {/* Passenger Form Modal */}
-      {currentSeat !== null && (
+      {isModalOpen && currentSeat !== null && (
         <PassengerFormModal
           isOpen={isModalOpen}
           onClose={handleModalClose}
