@@ -11,7 +11,7 @@ export default function Home() {
         {/* Hero Section */}
         <section className="relative h-[500px] w-full">
           <Image
-            src="/placeholder.svg?height=500&width=1920"
+            src="/images/terminal.jpg"
             alt="Beautiful destination"
             fill
             className="object-cover brightness-75"
