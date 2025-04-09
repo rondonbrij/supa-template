@@ -13,7 +13,8 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Loader2, CreditCard, Wallet, AlertCircle, CheckCircle2 } from "lucide-react"
+import { Loader2, Wallet, AlertCircle, CheckCircle2, QrCode } from "lucide-react"
+import Image from "next/image"
 
 export default function PaymentPage() {
   const params = useParams()
@@ -29,15 +30,12 @@ export default function PaymentPage() {
   const [company, setCompany] = useState<any>(null)
   const [passengers, setPassengers] = useState<any[]>([])
   const [totalAmount, setTotalAmount] = useState(0)
-  const [paymentMethod, setPaymentMethod] = useState("credit_card")
-  const [cardNumber, setCardNumber] = useState("")
-  const [cardName, setCardName] = useState("")
-  const [cardExpiry, setCardExpiry] = useState("")
-  const [cardCvv, setCvv] = useState("")
+  const [paymentMethod, setPaymentMethod] = useState("gcash")
   const [gcashNumber, setGcashNumber] = useState("")
   const [notes, setNotes] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [showQrCode, setShowQrCode] = useState(false)
 
   // Fetch booking details
   useEffect(() => {
@@ -85,7 +83,7 @@ export default function PaymentPage() {
         setPassengers(passengerData || [])
 
         // Calculate total amount
-        const total = passengerData.length * tripData.fare
+        const total = (passengerData?.length || 0) * tripData.fare
         setTotalAmount(total)
       } catch (error: any) {
         console.error("Error fetching booking details:", error)
@@ -104,19 +102,23 @@ export default function PaymentPage() {
 
     try {
       // Validate payment details based on method
-      if (paymentMethod === "credit_card") {
-        if (!cardNumber || !cardName || !cardExpiry || !cardCvv) {
-          throw new Error("Please fill in all credit card details")
-        }
-      } else if (paymentMethod === "gcash") {
-        if (!gcashNumber) {
-          throw new Error("Please enter your GCash number")
-        }
+      if (paymentMethod === "gcash" && !gcashNumber) {
+        throw new Error("Please enter your GCash number")
+      } else if (paymentMethod === "qr" && !showQrCode) {
+        // Show QR code first
+        setShowQrCode(true)
+        setIsProcessing(false)
+        return
       }
 
-      // In a real app, you would process the payment with a payment gateway here
-      // For this mock implementation, we'll simulate a payment process
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      // If QR code is already shown, proceed with payment
+      if (paymentMethod === "qr" && showQrCode) {
+        // Simulate payment processing
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+      } else {
+        // For GCash, simulate payment processing
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+      }
 
       // Record the payment proof
       const { data: paymentProofData, error: paymentProofError } = await supabase
@@ -149,7 +151,9 @@ export default function PaymentPage() {
       console.error("Payment error:", error)
       setError(error.message || "Payment processing failed. Please try again.")
     } finally {
-      setIsProcessing(false)
+      if (!showQrCode || paymentMethod !== "qr") {
+        setIsProcessing(false)
+      }
     }
   }
 
@@ -246,24 +250,28 @@ export default function PaymentPage() {
               <div>
                 <h3 className="font-semibold text-lg">Passenger Details</h3>
                 <div className="space-y-3 mt-2">
-                  {passengers.map((passenger, index) => (
-                    <div key={passenger.id} className="border rounded-md p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium">Passenger {index + 1}</span>
-                        <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                          Seat {passenger.seat_number}
-                        </span>
+                  {passengers.length > 0 ? (
+                    passengers.map((passenger, index) => (
+                      <div key={passenger.id} className="border rounded-md p-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-medium">Passenger {index + 1}</span>
+                          <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                            Seat {passenger.seat_number}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1 text-sm">
+                          <span className="text-muted-foreground">Name:</span>
+                          <span>
+                            {passenger.first_name} {passenger.last_name}
+                          </span>
+                          <span className="text-muted-foreground">Contact:</span>
+                          <span>{passenger.contact_number}</span>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-1 text-sm">
-                        <span className="text-muted-foreground">Name:</span>
-                        <span>
-                          {passenger.first_name} {passenger.last_name}
-                        </span>
-                        <span className="text-muted-foreground">Contact:</span>
-                        <span>{passenger.contact_number}</span>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <div className="text-center py-2 text-gray-500">No passenger details available</div>
+                  )}
                 </div>
               </div>
 
@@ -299,59 +307,21 @@ export default function PaymentPage() {
             <CardContent className="space-y-6">
               <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="grid grid-cols-1 gap-4">
                 <div className="flex items-center space-x-2 border rounded-md p-4">
-                  <RadioGroupItem value="credit_card" id="credit_card" />
-                  <Label htmlFor="credit_card" className="flex items-center gap-2 cursor-pointer">
-                    <CreditCard className="h-5 w-5" />
-                    <span>Credit/Debit Card</span>
-                  </Label>
-                </div>
-
-                <div className="flex items-center space-x-2 border rounded-md p-4">
                   <RadioGroupItem value="gcash" id="gcash" />
                   <Label htmlFor="gcash" className="flex items-center gap-2 cursor-pointer">
                     <Wallet className="h-5 w-5" />
                     <span>GCash</span>
                   </Label>
                 </div>
-              </RadioGroup>
 
-              {paymentMethod === "credit_card" && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="card_number">Card Number</Label>
-                    <Input
-                      id="card_number"
-                      placeholder="1234 5678 9012 3456"
-                      value={cardNumber}
-                      onChange={(e) => setCardNumber(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="card_name">Cardholder Name</Label>
-                    <Input
-                      id="card_name"
-                      placeholder="John Doe"
-                      value={cardName}
-                      onChange={(e) => setCardName(e.target.value)}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="card_expiry">Expiry Date</Label>
-                      <Input
-                        id="card_expiry"
-                        placeholder="MM/YY"
-                        value={cardExpiry}
-                        onChange={(e) => setCardExpiry(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="card_cvv">CVV</Label>
-                      <Input id="card_cvv" placeholder="123" value={cardCvv} onChange={(e) => setCvv(e.target.value)} />
-                    </div>
-                  </div>
+                <div className="flex items-center space-x-2 border rounded-md p-4">
+                  <RadioGroupItem value="qr" id="qr" />
+                  <Label htmlFor="qr" className="flex items-center gap-2 cursor-pointer">
+                    <QrCode className="h-5 w-5" />
+                    <span>QR Code Payment</span>
+                  </Label>
                 </div>
-              )}
+              </RadioGroup>
 
               {paymentMethod === "gcash" && (
                 <div className="space-y-4">
@@ -363,6 +333,27 @@ export default function PaymentPage() {
                       value={gcashNumber}
                       onChange={(e) => setGcashNumber(e.target.value)}
                     />
+                  </div>
+                </div>
+              )}
+
+              {paymentMethod === "qr" && showQrCode && (
+                <div className="space-y-4">
+                  <div className="flex flex-col items-center space-y-4 p-4 border rounded-md">
+                    <p className="text-center font-medium">Scan this QR code to pay</p>
+                    <div className="bg-white p-2 border">
+                      <div className="relative h-48 w-48">
+                        <Image
+                          src="/placeholder.svg?height=200&width=200"
+                          alt="Payment QR Code"
+                          fill
+                          className="object-contain"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-sm text-center text-muted-foreground">
+                      After scanning and completing payment, click the Pay button below
+                    </p>
                   </div>
                 </div>
               )}
@@ -388,6 +379,8 @@ export default function PaymentPage() {
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Processing...
                   </>
+                ) : paymentMethod === "qr" && showQrCode ? (
+                  "Confirm Payment"
                 ) : (
                   `Pay ₱ ${totalAmount.toFixed(2)}`
                 )}

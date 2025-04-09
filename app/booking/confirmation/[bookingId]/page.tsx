@@ -72,7 +72,7 @@ export default function ConfirmationPage() {
         setPassengers(passengerData || [])
 
         // Calculate total amount
-        const total = passengerData.length * tripData.fare
+        const total = (passengerData?.length || 0) * tripData.fare
         setTotalAmount(total)
       } catch (error: any) {
         console.error("Error fetching booking details:", error)
@@ -176,24 +176,34 @@ export default function ConfirmationPage() {
               <div>
                 <h3 className="font-semibold text-lg mb-2">Passenger Details</h3>
                 <div className="space-y-3">
-                  {passengers.map((passenger, index) => (
-                    <div key={passenger.id} className="border rounded-md p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium">Passenger {index + 1}</span>
-                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                          Seat {passenger.seat_number}
-                        </span>
+                  {passengers.length > 0 ? (
+                    passengers.map((passenger, index) => (
+                      <div key={passenger.id} className="border rounded-md p-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="font-medium">Passenger {index + 1}</span>
+                          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                            Seat {passenger.seat_number}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1 text-sm">
+                          <span className="text-muted-foreground">Name:</span>
+                          <span>
+                            {passenger.first_name} {passenger.last_name}
+                          </span>
+                          <span className="text-muted-foreground">Contact:</span>
+                          <span>{passenger.contact_number}</span>
+                          {passenger.email && (
+                            <>
+                              <span className="text-muted-foreground">Email:</span>
+                              <span>{passenger.email}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-1 text-sm">
-                        <span className="text-muted-foreground">Name:</span>
-                        <span>
-                          {passenger.first_name} {passenger.last_name}
-                        </span>
-                        <span className="text-muted-foreground">Contact:</span>
-                        <span>{passenger.contact_number}</span>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <div className="text-center py-2 text-gray-500">No passenger details available</div>
+                  )}
                 </div>
               </div>
 

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Seat, PassengerDetails } from "@/types/seat-types"
 import { generateBookingCode } from "@/lib/utils"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function SeatSelectionPage() {
   const params = useParams()
@@ -197,6 +198,21 @@ export default function SeatSelectionPage() {
 
       if (bookingError) throw bookingError
 
+      // Create passenger_info records for each passenger
+      const passengerPromises = passengersData.map((passenger) =>
+        supabase.from("passenger_info").insert({
+          booking_id: bookingData.id,
+          first_name: passenger.firstName,
+          last_name: passenger.lastName,
+          email: passenger.email || null,
+          contact_number: passenger.phoneNumber,
+          birthday: passenger.birthday,
+          seat_number: passenger.seatNumber.toString(),
+        }),
+      )
+
+      await Promise.all(passengerPromises)
+
       // Store booking details for the payment page
       localStorage.setItem(
         "bookingData",
@@ -220,7 +236,7 @@ export default function SeatSelectionPage() {
       router.push(`/payment/${bookingData.id}`)
     } catch (error) {
       console.error("Error creating booking:", error)
-      alert("Failed to create booking. Please try again.")
+      setError("Failed to create booking. Please try again.")
     }
   }
 
@@ -243,7 +259,9 @@ export default function SeatSelectionPage() {
       <>
         <Header />
         <div className="container mx-auto p-6">
-          <div className="p-4 text-red-500 bg-red-50 rounded-lg">{error}</div>
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         </div>
       </>
     )
@@ -316,4 +334,3 @@ export default function SeatSelectionPage() {
     </>
   )
 }
-
