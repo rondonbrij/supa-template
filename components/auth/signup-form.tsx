@@ -17,7 +17,8 @@ import { CalendarIcon, Loader2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 import { cn } from "@/lib/utils"
 
-export default function SignupForm() {
+// Update the props interface to include redirectUrl
+export default function SignupForm({ redirectUrl }: { redirectUrl?: string }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -75,6 +76,7 @@ export default function SignupForm() {
     return true
   }
 
+  // Update the handleSubmit function to store the redirectUrl
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -92,7 +94,9 @@ export default function SignupForm() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: redirectUrl
+            ? `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectUrl)}`
+            : `${window.location.origin}/auth/callback`,
           data: {
             first_name: firstName,
             last_name: lastName,
@@ -311,4 +315,3 @@ export default function SignupForm() {
     </Card>
   )
 }
-

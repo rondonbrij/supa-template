@@ -5,6 +5,7 @@ import { NextResponse, type NextRequest } from "next/server"
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get("code")
+  const redirectUrl = requestUrl.searchParams.get("redirect")
 
   if (code) {
     const cookieStore = await cookies()
@@ -28,7 +29,6 @@ export async function GET(request: NextRequest) {
     await supabase.auth.exchangeCodeForSession(code)
   }
 
-  // Changed: Redirect to profile page instead of home page
-  return NextResponse.redirect(new URL("/profile", request.url))
+  // Redirect to the specified URL or profile page
+  return NextResponse.redirect(new URL(redirectUrl || "/profile", request.url))
 }
-

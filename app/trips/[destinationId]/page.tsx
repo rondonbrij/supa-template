@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog"
 import { TripCard } from "@/components/trip-card"
 import { useMediaQuery } from "@/hooks/use-media-query"
+import { LoginPrompt } from "@/components/login-prompt"
 
 interface Trip {
   id: string
@@ -50,6 +51,8 @@ export default function TripSelectionPage() {
   const [sortOrder, setSortOrder] = useState<string>("earliest")
   const [selectedCompany, setSelectedCompany] = useState<string>("all")
   const [companies, setCompanies] = useState<string[]>([])
+  const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false)
+  const [selectedTripId, setSelectedTripId] = useState<string | null>(null)
 
   const { destinationId } = useParams()
   const router = useRouter()
@@ -175,12 +178,29 @@ export default function TripSelectionPage() {
     }
   }
 
-  const handleBookNow = (tripId: string) => {
+  const handleBookNow = async (tripId: string) => {
+    // Check if user is authenticated
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (!session) {
+      // If not authenticated, show login prompt
+      setSelectedTripId(tripId)
+      setIsLoginPromptOpen(true)
+      return
+    }
+
+    // If authenticated, proceed to booking
     router.push(`/booking/${tripId}`)
   }
 
   const handleDestinationChange = (destinationId: string) => {
     router.push(`/trips/${destinationId}`)
+  }
+
+  const handleLoginPromptClose = () => {
+    setIsLoginPromptOpen(false)
   }
 
   return (
@@ -359,7 +379,13 @@ export default function TripSelectionPage() {
           </div>
         )}
       </div>
+      {isLoginPromptOpen && (
+        <LoginPrompt
+          isOpen={isLoginPromptOpen}
+          onClose={handleLoginPromptClose}
+          redirectUrl={selectedTripId ? `/booking/${selectedTripId}` : "/trips"}
+        />
+      )}
     </>
   )
 }
-

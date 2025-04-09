@@ -13,7 +13,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { createClient } from "@/lib/supabase/browser"
 import { Loader2 } from "lucide-react"
 
-export default function LoginForm() {
+// Update the props interface to include redirectUrl
+export default function LoginForm({ redirectUrl }: { redirectUrl?: string }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -21,6 +22,7 @@ export default function LoginForm() {
   const router = useRouter()
   const supabase = createClient()
 
+  // Update the handleSubmit function to use the redirectUrl
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -38,7 +40,13 @@ export default function LoginForm() {
       }
 
       router.refresh()
-      router.push("/")
+
+      // Redirect to the specified URL or home page
+      if (redirectUrl) {
+        router.push(redirectUrl)
+      } else {
+        router.push("/")
+      }
     } catch (err) {
       setError("An unexpected error occurred")
       console.error(err)
@@ -109,4 +117,3 @@ export default function LoginForm() {
     </Card>
   )
 }
-
