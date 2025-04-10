@@ -34,6 +34,9 @@ interface Trip {
   available_seats: number
   amenities: any
   notes?: string
+  status: string
+  capacity: number
+  transport_company_id: string
 }
 
 interface Destination {
@@ -94,21 +97,26 @@ export default function TripSelectionPage() {
     async function fetchTrips() {
       setLoading(true)
       try {
+        // Use the correct schema fields and relationships
         const { data, error } = await supabase
           .from("trips")
           .select(`
-            id,
-            departure_time,
-            destinations (name),
-            transport_companies (name),
-            vehicle_type,
-            fare,
-            available_seats,
-            trip_amenities,
-            notes
-          `)
+          id,
+          departure_time,
+          fare,
+          available_seats,
+          vehicle_type,
+          status,
+          capacity,
+          notes,
+          trip_amenities,
+          transport_company_id,
+          destinations (id, name, price),
+          transport_companies (id, name)
+        `)
           .eq("destination_id", destinationId)
           .gte("departure_time", new Date().toISOString())
+          .in("status", ["scheduled", "departed"]) // Only show trips that are scheduled or departed
           .order("departure_time", { ascending: sortOrder === "earliest" })
 
         if (error) {
@@ -124,9 +132,12 @@ export default function TripSelectionPage() {
             company_name: trip.transport_companies?.name || "Unknown Company",
             vehicle_type: trip.vehicle_type,
             fare: trip.fare,
-            available_seats: trip.available_seats,
+            available_seats: trip.available_seats || 0,
             amenities: trip.trip_amenities,
             notes: trip.notes,
+            status: trip.status,
+            capacity: trip.capacity,
+            transport_company_id: trip.transport_company_id,
           }))
 
           // Extract unique company names
@@ -154,6 +165,9 @@ export default function TripSelectionPage() {
           if (selectedCompany !== "all") {
             filteredTrips = filteredTrips.filter((trip) => trip.company_name === selectedCompany)
           }
+
+          // Filter out trips with no available seats
+          filteredTrips = filteredTrips.filter((trip) => trip.available_seats > 0)
 
           setTrips(filteredTrips)
         }
