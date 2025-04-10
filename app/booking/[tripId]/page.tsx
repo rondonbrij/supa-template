@@ -267,18 +267,6 @@ export default function SeatSelectionPage() {
       return
     }
 
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      router.push(`/login?redirect=${encodeURIComponent(`/booking/${tripId}`)}`)
-      return
-    }
-
-    setIsSubmitting(true)
-    setError(null)
-
     // All forms are valid, proceed with booking
     const bookingCode = generateBookingCode()
 
@@ -291,7 +279,7 @@ export default function SeatSelectionPage() {
           booking_code: bookingCode,
           status: "pending",
           total_passengers: selectedSeats.length,
-          total_packages: 0, // Default to 0 packages
+          total_packages: 0,
           selected_seats: selectedSeats.map((seat) => ({
             number: seat.number,
             status: seat.status,
@@ -302,7 +290,11 @@ export default function SeatSelectionPage() {
 
       if (bookingError) {
         console.error("Error creating booking:", bookingError)
-        throw new Error("Failed to create booking. Please try again.")
+        throw new Error(bookingError.message || "Failed to create booking")
+      }
+
+      if (!bookingData) {
+        throw new Error("No booking data returned")
       }
 
       // Create passenger_info records for each passenger
@@ -321,34 +313,37 @@ export default function SeatSelectionPage() {
 
       const passengerResults = await Promise.all(passengerPromises)
 
-      // Check for errors in passenger creation
+      // Check for errors in passenger info creation
       const passengerErrors = passengerResults.filter((result) => result.error)
       if (passengerErrors.length > 0) {
-        console.error("Error creating passenger info:", passengerErrors[0].error)
-        throw new Error("Failed to create passenger information. Please try again.")
+        console.error("Error creating passenger info:", passengerErrors)
+        throw new Error("Failed to create passenger information")
       }
 
-      // Update seats status
-      const seatPromises = selectedSeats.map((seat) => {
-        return supabase
-          .from("seats")
-          .update({
-            status: "reserved",
-            booking_id: bookingData.id,
-          })
-          .eq("trip_id", tripId)
-          .eq("seat_number", seat.number.toString())
-      })
-
-      await Promise.all(seatPromises)
+      // Store booking details for the payment page
+      localStorage.setItem(
+        "bookingData",
+        JSON.stringify({
+          bookingId: bookingData.id,
+          bookingCode,
+          tripId,
+          selectedSeats,
+          passengers: Object.values(passengerDetails),
+          farePerSeat,
+          totalAmount: selectedSeats.length * farePerSeat,
+          tripDetails: {
+            departure: trip.departure_time,
+            destination: trip.destinations?.name,
+            company: trip.transport_companies?.name,
+          },
+        }),
+      )
 
       // Navigate to payment page
       router.push(`/payment/${bookingData.id}`)
     } catch (error: any) {
       console.error("Error creating booking:", error)
       setError(error.message || "Failed to create booking. Please try again.")
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
