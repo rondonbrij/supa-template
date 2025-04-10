@@ -43,4 +43,3 @@ export function Seat({ seat, onClick, size = "md" }: SeatProps) {
     </button>
   )
 }
-

@@ -38,6 +38,9 @@ export default function SeatSelectionPage() {
 
   const supabase = createClient()
 
+  // Add a new state for processing seats
+  const [processingSeats, setProcessingSeats] = useState<number[]>([])
+
   // Fetch trip details
   useEffect(() => {
     async function fetchTripDetails() {
@@ -88,21 +91,30 @@ export default function SeatSelectionPage() {
     // Fetch booked seats for this trip
     async function fetchBookedSeats() {
       try {
-        // This is a simplified example. In a real app, you would fetch actual booked seats from your database.
-        const { data, error } = await supabase.from("bookings").select("selected_seats").eq("trip_id", tripId)
+        const { data, error } = await supabase
+          .from("bookings")
+          .select("id, status, selected_seats")
+          .eq("trip_id", tripId)
 
         if (error) {
           throw error
         }
 
-        // Extract booked seat numbers from the data
+        // Extract booked and processing seat numbers from the data
         const booked: number[] = []
+        const processing: number[] = []
+
         if (data && data.length > 0) {
           data.forEach((booking) => {
             if (booking.selected_seats && Array.isArray(booking.selected_seats)) {
               booking.selected_seats.forEach((seat: any) => {
                 if (typeof seat.number === "number") {
-                  booked.push(seat.number)
+                  // If booking is confirmed, mark as booked, otherwise as processing
+                  if (booking.status === "confirmed") {
+                    booked.push(seat.number)
+                  } else if (booking.status === "pending") {
+                    processing.push(seat.number)
+                  }
                 }
               })
             }
@@ -110,6 +122,7 @@ export default function SeatSelectionPage() {
         }
 
         setBookedSeats(booked)
+        setProcessingSeats(processing)
       } catch (error) {
         console.error("Error fetching booked seats:", error)
       }
@@ -124,10 +137,10 @@ export default function SeatSelectionPage() {
     const newSeats = Array.from({ length: totalSeats }, (_, i) => ({
       id: `seat-${i + 1}`,
       number: i + 1,
-      status: bookedSeats.includes(i + 1) ? "booked" : "available",
+      status: bookedSeats.includes(i + 1) ? "booked" : processingSeats.includes(i + 1) ? "processing" : "available",
     }))
     setSeats(newSeats)
-  }, [vehicleType, bookedSeats])
+  }, [vehicleType, bookedSeats, processingSeats])
 
   const handleSeatClick = (clickedSeat: Seat) => {
     if (clickedSeat.status === "booked") return
