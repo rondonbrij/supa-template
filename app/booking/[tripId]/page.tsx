@@ -267,6 +267,18 @@ export default function SeatSelectionPage() {
       return
     }
 
+    // Check if user is authenticated
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session) {
+      router.push(`/login?redirect=${encodeURIComponent(`/booking/${tripId}`)}`)
+      return
+    }
+
+    setIsSubmitting(true)
+    setError(null)
+
     // All forms are valid, proceed with booking
     const bookingCode = generateBookingCode()
 
@@ -291,10 +303,6 @@ export default function SeatSelectionPage() {
       if (bookingError) {
         console.error("Error creating booking:", bookingError)
         throw new Error(bookingError.message || "Failed to create booking")
-      }
-
-      if (!bookingData) {
-        throw new Error("No booking data returned")
       }
 
       // Create passenger_info records for each passenger
@@ -344,6 +352,8 @@ export default function SeatSelectionPage() {
     } catch (error: any) {
       console.error("Error creating booking:", error)
       setError(error.message || "Failed to create booking. Please try again.")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
