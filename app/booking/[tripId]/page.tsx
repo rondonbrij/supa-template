@@ -14,6 +14,7 @@ import { generateBookingCode } from "@/lib/utils"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { PassengerFormModal } from "@/components/seat-selection/passenger-form-modal"
 import { PassengerCard } from "@/components/seat-selection/passenger-card"
+import { AlertCircle, Loader2 } from "lucide-react"
 
 export default function SeatSelectionPage() {
   const params = useParams()
@@ -29,6 +30,7 @@ export default function SeatSelectionPage() {
   const [bookedSeats, setBookedSeats] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -51,16 +53,17 @@ export default function SeatSelectionPage() {
         const { data, error } = await supabase
           .from("trips")
           .select(`
-            id,
-            departure_time,
-            destinations (name),
-            transport_companies (name),
-            vehicle_type,
-            fare,
-            available_seats,
-            trip_amenities,
-            notes
-          `)
+           id,
+           departure_time,
+           destinations (name),
+           transport_companies (name),
+           vehicle_type,
+           fare,
+           available_seats,
+           capacity,
+           trip_amenities,
+           notes
+         `)
           .eq("id", tripId)
           .single()
 
@@ -91,34 +94,60 @@ export default function SeatSelectionPage() {
     // Fetch booked seats for this trip
     async function fetchBookedSeats() {
       try {
-        const { data, error } = await supabase
-          .from("bookings")
-          .select("id, status, selected_seats")
+        // First, get all seats for this trip
+        const { data: seatsData, error: seatsError } = await supabase
+          .from("seats")
+          .select("id, seat_number, status")
           .eq("trip_id", tripId)
 
-        if (error) {
-          throw error
+        if (seatsError) {
+          throw seatsError
         }
 
-        // Extract booked and processing seat numbers from the data
+        // Extract booked and processing seat numbers
         const booked: number[] = []
         const processing: number[] = []
 
-        if (data && data.length > 0) {
-          data.forEach((booking) => {
-            if (booking.selected_seats && Array.isArray(booking.selected_seats)) {
-              booking.selected_seats.forEach((seat: any) => {
-                if (typeof seat.number === "number") {
-                  // If booking is confirmed, mark as booked, otherwise as processing
-                  if (booking.status === "confirmed") {
-                    booked.push(seat.number)
-                  } else if (booking.status === "pending") {
-                    processing.push(seat.number)
-                  }
-                }
-              })
+        if (seatsData && seatsData.length > 0) {
+          seatsData.forEach((seat) => {
+            const seatNumber = Number.parseInt(seat.seat_number)
+            if (!isNaN(seatNumber)) {
+              if (seat.status === "booked") {
+                booked.push(seatNumber)
+              } else if (seat.status === "reserved") {
+                processing.push(seatNumber)
+              }
             }
           })
+        }
+
+        // If no seats data found, fall back to checking bookings
+        if (seatsData.length === 0) {
+          const { data: bookingsData, error: bookingsError } = await supabase
+            .from("bookings")
+            .select("id, status, selected_seats")
+            .eq("trip_id", tripId)
+
+          if (bookingsError) {
+            throw bookingsError
+          }
+
+          if (bookingsData && bookingsData.length > 0) {
+            bookingsData.forEach((booking) => {
+              if (booking.selected_seats && Array.isArray(booking.selected_seats)) {
+                booking.selected_seats.forEach((seat: any) => {
+                  if (typeof seat.number === "number") {
+                    // If booking is confirmed, mark as booked, otherwise as processing
+                    if (booking.status === "confirmed") {
+                      booked.push(seat.number)
+                    } else if (booking.status === "pending") {
+                      processing.push(seat.number)
+                    }
+                  }
+                })
+              }
+            })
+          }
         }
 
         setBookedSeats(booked)
@@ -143,7 +172,7 @@ export default function SeatSelectionPage() {
   }, [vehicleType, bookedSeats, processingSeats])
 
   const handleSeatClick = (clickedSeat: Seat) => {
-    if (clickedSeat.status === "booked") return
+    if (clickedSeat.status === "booked" || clickedSeat.status === "processing") return
 
     // If the seat is already selected and has passenger details, open edit modal
     if (clickedSeat.status === "selected" && passengerDetails[clickedSeat.number]) {
@@ -238,6 +267,18 @@ export default function SeatSelectionPage() {
       return
     }
 
+    // Get current user
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      router.push(`/login?redirect=${encodeURIComponent(`/booking/${tripId}`)}`)
+      return
+    }
+
+    setIsSubmitting(true)
+    setError(null)
+
     // All forms are valid, proceed with booking
     const bookingCode = generateBookingCode()
 
@@ -250,6 +291,7 @@ export default function SeatSelectionPage() {
           booking_code: bookingCode,
           status: "pending",
           total_passengers: selectedSeats.length,
+          total_packages: 0, // Default to 0 packages
           selected_seats: selectedSeats.map((seat) => ({
             number: seat.number,
             status: seat.status,
@@ -258,7 +300,10 @@ export default function SeatSelectionPage() {
         .select()
         .single()
 
-      if (bookingError) throw bookingError
+      if (bookingError) {
+        console.error("Error creating booking:", bookingError)
+        throw new Error("Failed to create booking. Please try again.")
+      }
 
       // Create passenger_info records for each passenger
       const passengerPromises = selectedSeats.map((seat) => {
@@ -274,32 +319,36 @@ export default function SeatSelectionPage() {
         })
       })
 
-      await Promise.all(passengerPromises)
+      const passengerResults = await Promise.all(passengerPromises)
 
-      // Store booking details for the payment page
-      localStorage.setItem(
-        "bookingData",
-        JSON.stringify({
-          bookingId: bookingData.id,
-          bookingCode,
-          tripId,
-          selectedSeats,
-          passengers: Object.values(passengerDetails),
-          farePerSeat,
-          totalAmount: selectedSeats.length * farePerSeat,
-          tripDetails: {
-            departure: trip.departure_time,
-            destination: trip.destinations?.name,
-            company: trip.transport_companies?.name,
-          },
-        }),
-      )
+      // Check for errors in passenger creation
+      const passengerErrors = passengerResults.filter((result) => result.error)
+      if (passengerErrors.length > 0) {
+        console.error("Error creating passenger info:", passengerErrors[0].error)
+        throw new Error("Failed to create passenger information. Please try again.")
+      }
+
+      // Update seats status
+      const seatPromises = selectedSeats.map((seat) => {
+        return supabase
+          .from("seats")
+          .update({
+            status: "reserved",
+            booking_id: bookingData.id,
+          })
+          .eq("trip_id", tripId)
+          .eq("seat_number", seat.number.toString())
+      })
+
+      await Promise.all(seatPromises)
 
       // Navigate to payment page
       router.push(`/payment/${bookingData.id}`)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating booking:", error)
-      setError("Failed to create booking. Please try again.")
+      setError(error.message || "Failed to create booking. Please try again.")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -312,19 +361,6 @@ export default function SeatSelectionPage() {
             <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
             <p>Loading trip details...</p>
           </div>
-        </div>
-      </>
-    )
-  }
-
-  if (error) {
-    return (
-      <>
-        <Header />
-        <div className="container mx-auto p-6">
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
         </div>
       </>
     )
@@ -353,6 +389,13 @@ export default function SeatSelectionPage() {
               <CardTitle>Passenger Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
               {selectedSeats.length > 0 ? (
                 <>
                   <div className="space-y-4">
@@ -416,9 +459,16 @@ export default function SeatSelectionPage() {
               <Button
                 className="w-full bg-black hover:bg-gray-800 text-white"
                 onClick={handleContinue}
-                disabled={selectedSeats.length === 0}
+                disabled={selectedSeats.length === 0 || isSubmitting}
               >
-                CONTINUE
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  "CONTINUE"
+                )}
               </Button>
             </CardContent>
           </Card>
