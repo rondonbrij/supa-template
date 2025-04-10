@@ -101,7 +101,6 @@ export default function SignupForm({ redirectUrl }: { redirectUrl?: string }) {
             first_name: firstName,
             last_name: lastName,
             phone: phone || null,
-            // Store birth date as ISO string
             birth_date: birthDate?.toISOString().split("T")[0],
           },
         },

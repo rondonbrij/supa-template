@@ -76,16 +76,16 @@ export default function ProfileForm({ initialData, userId, userEmail }: ProfileF
     setError(null)
 
     try {
-      // Update the passenger record
+      // Update the profile record
       const { error } = await supabase
-        .from("passengers")
+        .from("profiles")
         .update({
           first_name: data.firstName,
           last_name: data.lastName,
-          phone: data.phone,
-          birth_date: data.birthDate.toISOString().split("T")[0],
+          contact_number: data.phone,
+          birthday: data.birthDate.toISOString().split("T")[0],
         })
-        .eq("auth_id", userId)
+        .eq("user_id", userId)
 
       if (error) {
         throw error
@@ -281,4 +281,3 @@ export default function ProfileForm({ initialData, userId, userEmail }: ProfileF
     </div>
   )
 }
-

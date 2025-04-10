@@ -15,15 +15,13 @@ export default async function EditProfilePage() {
     redirect("/login")
   }
 
-  // Fetch passenger profile from the passengers table
-  const { data: passenger, error } = await supabase
-    .from("passengers")
-    .select("*")
-    .eq("auth_id", session.user.id)
-    .single()
+  // Update the edit profile page to use the profiles table
+
+  // Replace the passenger query with profiles query
+  const { data: profile, error } = await supabase.from("profiles").select("*").eq("user_id", session.user.id).single()
 
   if (error) {
-    console.error("Error fetching passenger profile:", error)
+    console.error("Error fetching profile:", error)
   }
 
   return (
@@ -38,11 +36,11 @@ export default async function EditProfilePage() {
             <CardDescription>Update your personal details and contact information</CardDescription>
           </CardHeader>
           <CardContent>
-            <ProfileForm initialData={passenger} userId={session.user.id} userEmail={session.user.email || ""} />
+            {/* Update the ProfileForm component call */}
+            <ProfileForm initialData={profile} userId={session.user.id} userEmail={session.user.email || ""} />
           </CardContent>
         </Card>
       </div>
     </>
   )
 }
-

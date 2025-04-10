@@ -17,18 +17,20 @@ export default async function ProfilePage() {
     redirect("/login")
   }
 
-  // Fetch passenger profile from the passengers table
-  let { data: passenger, error } = await supabase.from("passengers").select("*").eq("auth_id", session.user.id).single()
+  // Update the profile page to use the profiles table instead of passengers table
 
-  // If no passenger record exists, create one
+  // Replace the passenger query with profiles query
+  let { data: profile, error } = await supabase.from("profiles").select("*").eq("user_id", session.user.id).single()
+
+  // If no profile record exists, create one
   if (error && error.code === "PGRST116") {
-    // Call the RPC function to create a passenger profile
-    const { data: newPassenger, error: createError } = await supabase.rpc("create_passenger_profile_if_missing", {
+    // Call the RPC function to create a profile
+    const { data: newProfile, error: createError } = await supabase.rpc("create_passenger_profile_if_missing", {
       user_id: session.user.id,
     })
 
     if (createError) {
-      console.error("Error creating passenger profile:", createError)
+      console.error("Error creating profile:", createError)
       return (
         <>
           <Header />
@@ -50,14 +52,14 @@ export default async function ProfilePage() {
       )
     }
 
-    // Fetch the newly created passenger profile
-    const { data: refreshedPassenger } = await supabase
-      .from("passengers")
+    // Fetch the newly created profile
+    const { data: refreshedProfile } = await supabase
+      .from("profiles")
       .select("*")
-      .eq("auth_id", session.user.id)
+      .eq("user_id", session.user.id)
       .single()
 
-    passenger = refreshedPassenger
+    profile = refreshedProfile
   } else if (error) {
     console.error("Error fetching passenger profile:", error)
     return (
@@ -81,10 +83,16 @@ export default async function ProfilePage() {
     )
   }
 
+  // Update all references from passenger to profile in the JSX
+  // For example:
+  // Replace: passenger?.first_name with profile?.first_name
+  // Replace: passenger?.profile_picture with profile?.profile_picture
+  // etc.
+
   // Format the birth date if it exists
-  const formattedBirthDate = passenger?.birth_date
-    ? format(new Date(passenger.birth_date), "MMMM d, yyyy")
-    : "Not provided"
+  const formattedBirthDate = profile?.birthday ? format(new Date(profile.birthday), "MMMM d, yyyy") : "Not provided"
+
+  // Update the JSX to use profile instead of passenger
 
   return (
     <>
@@ -102,17 +110,17 @@ export default async function ProfilePage() {
               <div className="flex flex-col items-center space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4">
                 <Avatar className="h-24 w-24">
                   <AvatarImage
-                    src={passenger?.profile_picture || ""}
-                    alt={`${passenger?.first_name} ${passenger?.last_name}`}
+                    src={profile?.profile_picture || ""}
+                    alt={`${profile?.first_name} ${profile?.last_name}`}
                   />
                   <AvatarFallback className="text-2xl">
-                    {passenger?.first_name?.[0]}
-                    {passenger?.last_name?.[0]}
+                    {profile?.first_name?.[0]}
+                    {profile?.last_name?.[0]}
                   </AvatarFallback>
                 </Avatar>
                 <div>
                   <h2 className="text-2xl font-bold">
-                    {passenger?.first_name} {passenger?.last_name}
+                    {profile?.first_name} {profile?.last_name}
                   </h2>
                   <p className="text-muted-foreground">Passenger</p>
                 </div>
@@ -123,7 +131,7 @@ export default async function ProfilePage() {
                   <Mail className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <p className="text-sm font-medium leading-none">Email</p>
-                    <p className="text-sm text-muted-foreground">{passenger?.email || session.user.email}</p>
+                    <p className="text-sm text-muted-foreground">{profile?.email || session.user.email}</p>
                   </div>
                 </div>
 
@@ -131,7 +139,7 @@ export default async function ProfilePage() {
                   <Phone className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <p className="text-sm font-medium leading-none">Phone Number</p>
-                    <p className="text-sm text-muted-foreground">{passenger?.phone || "Not provided"}</p>
+                    <p className="text-sm text-muted-foreground">{profile?.phone || "Not provided"}</p>
                   </div>
                 </div>
 
@@ -267,4 +275,3 @@ export default async function ProfilePage() {
     </>
   )
 }
-
