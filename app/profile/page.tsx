@@ -9,28 +9,36 @@ import Header from "@/components/header"
 export default async function ProfilePage() {
   const supabase = await createClient()
 
+  // Use getUser instead of getSession for better security
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!user) {
     redirect("/login")
   }
 
-  // Update the profile page to use the profiles table instead of passengers table
+  // Try to fetch the profile
+  let { data: profile, error } = await supabase.from("profiles").select("*").eq("user_id", user.id).single()
 
-  // Replace the passenger query with profiles query
-  let { data: profile, error } = await supabase.from("profiles").select("*").eq("user_id", session.user.id).single()
-
-  // If no profile record exists, create one
+  // If no profile exists, create one directly
   if (error && error.code === "PGRST116") {
-    // Call the RPC function to create a profile
-    const { data: newProfile, error: createError } = await supabase.rpc("create_passenger_profile_if_missing", {
-      user_id: session.user.id,
-    })
+    // Create profile directly instead of using the function
+    const { data: newProfile, error: insertError } = await supabase
+      .from("profiles")
+      .insert({
+        user_id: user.id,
+        first_name: user.user_metadata?.first_name || "Unknown",
+        last_name: user.user_metadata?.last_name || "Unknown",
+        email: user.email,
+        contact_number: user.user_metadata?.phone || null,
+        birthday: user.user_metadata?.birth_date || null,
+      })
+      .select()
+      .single()
 
-    if (createError) {
-      console.error("Error creating profile:", createError)
+    if (insertError) {
+      console.error("Error creating profile:", insertError)
       return (
         <>
           <Header />
@@ -44,7 +52,7 @@ export default async function ProfilePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-red-500">Error: {createError.message}</p>
+                <p className="text-red-500">Error: {insertError.message}</p>
               </CardContent>
             </Card>
           </div>
@@ -52,16 +60,9 @@ export default async function ProfilePage() {
       )
     }
 
-    // Fetch the newly created profile
-    const { data: refreshedProfile } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .single()
-
-    profile = refreshedProfile
+    profile = newProfile
   } else if (error) {
-    console.error("Error fetching passenger profile:", error)
+    console.error("Error fetching profile:", error)
     return (
       <>
         <Header />
@@ -83,16 +84,8 @@ export default async function ProfilePage() {
     )
   }
 
-  // Update all references from passenger to profile in the JSX
-  // For example:
-  // Replace: passenger?.first_name with profile?.first_name
-  // Replace: passenger?.profile_picture with profile?.profile_picture
-  // etc.
-
   // Format the birth date if it exists
   const formattedBirthDate = profile?.birthday ? format(new Date(profile.birthday), "MMMM d, yyyy") : "Not provided"
-
-  // Update the JSX to use profile instead of passenger
 
   return (
     <>
@@ -131,7 +124,7 @@ export default async function ProfilePage() {
                   <Mail className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <p className="text-sm font-medium leading-none">Email</p>
-                    <p className="text-sm text-muted-foreground">{profile?.email || session.user.email}</p>
+                    <p className="text-sm text-muted-foreground">{profile?.email || user.email}</p>
                   </div>
                 </div>
 
@@ -139,7 +132,7 @@ export default async function ProfilePage() {
                   <Phone className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <p className="text-sm font-medium leading-none">Phone Number</p>
-                    <p className="text-sm text-muted-foreground">{profile?.phone || "Not provided"}</p>
+                    <p className="text-sm text-muted-foreground">{profile?.contact_number || "Not provided"}</p>
                   </div>
                 </div>
 

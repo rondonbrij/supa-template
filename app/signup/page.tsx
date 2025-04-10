@@ -6,10 +6,10 @@ export default async function SignupPage({ searchParams }: { searchParams: { red
   const supabase = await createClient()
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (session) {
+  if (user) {
     // If there's a redirect URL in the query params, use it
     if (searchParams.redirect) {
       redirect(searchParams.redirect)

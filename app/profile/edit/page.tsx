@@ -7,18 +7,17 @@ import Header from "@/components/header"
 export default async function EditProfilePage() {
   const supabase = await createClient()
 
+  // Use getUser instead of getSession for better security
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!user) {
     redirect("/login")
   }
 
-  // Update the edit profile page to use the profiles table
-
   // Replace the passenger query with profiles query
-  const { data: profile, error } = await supabase.from("profiles").select("*").eq("user_id", session.user.id).single()
+  const { data: profile, error } = await supabase.from("profiles").select("*").eq("user_id", user.id).single()
 
   if (error) {
     console.error("Error fetching profile:", error)
@@ -37,7 +36,7 @@ export default async function EditProfilePage() {
           </CardHeader>
           <CardContent>
             {/* Update the ProfileForm component call */}
-            <ProfileForm initialData={profile} userId={session.user.id} userEmail={session.user.email || ""} />
+            <ProfileForm initialData={profile} userId={user.id} userEmail={user.email || ""} />
           </CardContent>
         </Card>
       </div>
