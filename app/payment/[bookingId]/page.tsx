@@ -96,59 +96,50 @@ export default function PaymentPage() {
     fetchBookingDetails()
   }, [bookingId, supabase])
 
-  const handlePaymentSubmit = async () => {
-    setIsProcessing(true)
-    setError(null)
+  /// In app/payment/[bookingId]/page.tsx
 
-    try {
-      // Validate payment details based on method
-      if (paymentMethod === "gcash" && !gcashNumber) {
-        throw new Error("Please enter your GCash number")
-      } else if (paymentMethod === "qr" && !showQrCode) {
-        // Show QR code first
-        setShowQrCode(true)
-        setIsProcessing(false)
-        return
-      }
+const handlePaymentSubmit = async () => {
+  setIsProcessing(true);
+  setError(null);
 
-      // If QR code is already shown, proceed with payment
-      if (paymentMethod === "qr" && showQrCode) {
-        // Simulate payment processing
-        await new Promise((resolve) => setTimeout(resolve, 2000))
-      } else {
-        // For GCash, simulate payment processing
-        await new Promise((resolve) => setTimeout(resolve, 2000))
-      }
+  try {
+    // Validate payment details based on method
+    if (paymentMethod === "gcash" && !gcashNumber) {
+      throw new Error("Please enter your GCash number");
+    } else if (paymentMethod === "qr" && !showQrCode) {
+      // Show QR code first
+      setShowQrCode(true);
+      setIsProcessing(false);
+      return;
+    }
 
-      // Create payment record with confirmed status
-      // This will trigger the database function to transfer the booking
-      const { data: paymentProofData, error: paymentProofError } = await supabase.from("payment_proofs").insert({
-        booking_id: bookingId,
-        payment_method: paymentMethod,
-        payment_status: "confirmed", // Set to confirmed to trigger the function
-        confirmed_at: new Date().toISOString(), // Add the current timestamp
-      })
+    // Call the function to process the payment
+    const { data, error } = await supabase.rpc('process_booking_payment', {
+      p_pending_booking_id: bookingId,
+      p_payment_method: paymentMethod,
+      p_payment_status: 'confirmed'
+    });
 
-      if (paymentProofError) {
-        throw paymentProofError
-      }
+    if (error) {
+      throw error;
+    }
 
-      // Payment successful
-      setIsSuccess(true)
+    // Payment successful
+    setIsSuccess(true);
 
-      // Redirect to confirmation page after 3 seconds
-      setTimeout(() => {
-        router.push(`/booking/confirmation/${bookingId}`)
-      }, 3000)
-    } catch (error: any) {
-      console.error("Payment error:", error)
-      setError(error.message || "Payment processing failed. Please try again.")
-    } finally {
-      if (!showQrCode || paymentMethod !== "qr") {
-        setIsProcessing(false)
-      }
+    // Redirect to confirmation page after 3 seconds
+    setTimeout(() => {
+      router.push(`/booking/confirmation/${data}`);
+    }, 3000);
+  } catch (error: any) {
+    console.error("Payment error:", error);
+    setError(error.message || "Payment processing failed. Please try again.");
+  } finally {
+    if (!showQrCode || paymentMethod !== "qr") {
+      setIsProcessing(false);
     }
   }
+}
 
   if (loading) {
     return (
