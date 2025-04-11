@@ -53,7 +53,7 @@ export default function SearchBar() {
     : destinations
 
   return (
-    <div className="rounded-lg bg-white p-4 shadow-lg">
+    <div className="rounded-lg bg-white p-4 shadow-lg max-w-md mx-auto">
       <div className="space-y-4">
         <div className="space-y-2">
           <label htmlFor="destination" className="text-sm font-medium">
@@ -67,18 +67,22 @@ export default function SearchBar() {
                   role="combobox"
                   aria-expanded={open}
                   aria-label="Select a destination"
-                  className="w-full justify-between h-10 font-normal text-left"
+                  className="w-full justify-between h-10 font-normal text-left border-2"
                   onClick={() => setOpen(!open)}
                 >
                   <span className="truncate">
                     {value
                       ? destinations.find((destination) => destination.name === value)?.name
-                      : "Search for a destination..."}
+                      : "Select a destination..."}
                   </span>
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="p-0 shadow-lg" style={{ width: inputRef.current?.clientWidth }} align="start">
+              <PopoverContent
+                className="p-0 shadow-lg w-[400px]"
+                style={{ width: inputRef.current?.clientWidth }}
+                align="start"
+              >
                 <Command shouldFilter={false}>
                   <CommandInput
                     placeholder="Search for a destination..."
@@ -108,6 +112,7 @@ export default function SearchBar() {
                             setSearchTerm("")
                             router.push(`/trips/${destination.id}`)
                           }}
+                          className="py-2"
                         >
                           <Check
                             className={cn("mr-2 h-4 w-4", value === destination.name ? "opacity-100" : "opacity-0")}
@@ -127,4 +132,3 @@ export default function SearchBar() {
     </div>
   )
 }
-
