@@ -44,9 +44,9 @@ export default function PaymentPage() {
 
       setLoading(true)
       try {
-        // Fetch booking
+        // Fetch pending booking
         const { data: bookingData, error: bookingError } = await supabase
-          .from("bookings")
+          .from("pending_bookings")
           .select("*")
           .eq("id", bookingId)
           .single()
@@ -72,9 +72,9 @@ export default function PaymentPage() {
         setDestination(tripData.destinations)
         setCompany(tripData.transport_companies)
 
-        // Fetch passenger details
+        // Fetch passenger details from pending_passenger_info
         const { data: passengerData, error: passengerError } = await supabase
-          .from("passenger_info")
+          .from("pending_passenger_info")
           .select("*")
           .eq("booking_id", bookingId)
 
@@ -120,27 +120,17 @@ export default function PaymentPage() {
         await new Promise((resolve) => setTimeout(resolve, 2000))
       }
 
-      // First, update booking status to confirmed
-      // This is important because the RLS policy for payment_proofs likely depends on the booking
-      const { error: updateError } = await supabase.from("bookings").update({ status: "confirmed" }).eq("id", bookingId)
-
-      if (updateError) throw updateError
-
-      // Now record the payment proof
-      // The RLS policy for payment_proofs likely requires the booking to exist and be accessible to the user
+      // Create payment record with confirmed status
+      // This will trigger the database function to transfer the booking
       const { data: paymentProofData, error: paymentProofError } = await supabase.from("payment_proofs").insert({
         booking_id: bookingId,
         payment_method: paymentMethod,
-        // In a real app, you would upload an image proof
-        proof_image: "mock_payment_proof.jpg",
-        status: "pending", // Initially pending until approved
-        submitted_at: new Date().toISOString(), // Add the current timestamp
+        payment_status: "confirmed", // Set to confirmed to trigger the function
+        confirmed_at: new Date().toISOString(), // Add the current timestamp
       })
 
       if (paymentProofError) {
-        console.error("Payment proof error:", paymentProofError)
-        // Even if payment proof fails, we've already updated the booking status
-        // So we can still consider this a success for the user
+        throw paymentProofError
       }
 
       // Payment successful

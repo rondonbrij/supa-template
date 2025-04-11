@@ -33,7 +33,7 @@ export default function ConfirmationPage() {
 
       setLoading(true)
       try {
-        // Fetch booking
+        // Fetch booking - now it should be in the bookings table after payment confirmation
         const { data: bookingData, error: bookingError } = await supabase
           .from("bookings")
           .select("*")
@@ -48,10 +48,10 @@ export default function ConfirmationPage() {
         const { data: tripData, error: tripError } = await supabase
           .from("trips")
           .select(`
-            *,
-            destinations (id, name),
-            transport_companies (id, name)
-          `)
+        *,
+        destinations (id, name),
+        transport_companies (id, name)
+      `)
           .eq("id", bookingData.trip_id)
           .single()
 
@@ -61,7 +61,7 @@ export default function ConfirmationPage() {
         setDestination(tripData.destinations)
         setCompany(tripData.transport_companies)
 
-        // Fetch passenger details
+        // Fetch passenger details - now from passenger_info table
         const { data: passengerData, error: passengerError } = await supabase
           .from("passenger_info")
           .select("*")

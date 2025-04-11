@@ -283,9 +283,9 @@ export default function SeatSelectionPage() {
     const bookingCode = generateBookingCode()
 
     try {
-      // Create booking in database
+      // Create pending booking in database
       const { data: bookingData, error: bookingError } = await supabase
-        .from("bookings")
+        .from("pending_bookings")
         .insert({
           trip_id: tripId,
           booking_code: bookingCode,
@@ -301,14 +301,14 @@ export default function SeatSelectionPage() {
         .single()
 
       if (bookingError) {
-        console.error("Error creating booking:", bookingError)
+        console.error("Error creating pending booking:", bookingError)
         throw new Error(bookingError.message || "Failed to create booking")
       }
 
-      // Create passenger_info records for each passenger
+      // Create pending_passenger_info records for each passenger
       const passengerPromises = selectedSeats.map((seat) => {
         const passenger = passengerDetails[seat.number]
-        return supabase.from("passenger_info").insert({
+        return supabase.from("pending_passenger_info").insert({
           booking_id: bookingData.id,
           first_name: passenger.firstName,
           last_name: passenger.lastName,
