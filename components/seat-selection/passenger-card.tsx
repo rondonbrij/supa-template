@@ -11,7 +11,7 @@ interface PassengerCardProps {
     lastName: string
     email?: string
     phoneNumber: string
-    birthday: string
+    birthday: string | Date
     seatNumber: number
   }
   index: number

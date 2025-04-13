@@ -166,8 +166,12 @@ export default function SeatSelectionPage() {
     const newSeats = Array.from({ length: totalSeats }, (_, i) => ({
       id: `seat-${i + 1}`,
       number: i + 1,
-      status: bookedSeats.includes(i + 1) ? "booked" : processingSeats.includes(i + 1) ? "processing" : "available",
-    }))
+      status: bookedSeats.includes(i + 1) 
+        ? "booked" 
+        : processingSeats.includes(i + 1) 
+          ? "processing" 
+          : "available"
+    } as Seat))
     setSeats(newSeats)
   }, [vehicleType, bookedSeats, processingSeats])
 
@@ -184,7 +188,9 @@ export default function SeatSelectionPage() {
 
     // If the seat is already selected but doesn't have passenger details, deselect it
     if (clickedSeat.status === "selected") {
-      const updatedSeats = seats.map((seat) => (seat.id === clickedSeat.id ? { ...seat, status: "available" } : seat))
+      const updatedSeats = seats.map((seat) => 
+        seat.id === clickedSeat.id ? { ...seat, status: "available" as const } : seat
+      ) as Seat[]
       const updatedSelectedSeats = selectedSeats.filter((seat) => seat.id !== clickedSeat.id)
 
       setSeats(updatedSeats)
@@ -199,8 +205,10 @@ export default function SeatSelectionPage() {
     }
 
     // If the seat is available, select it and open the modal
-    const updatedSeats = seats.map((seat) => (seat.id === clickedSeat.id ? { ...seat, status: "selected" } : seat))
-    const updatedSelectedSeats = [...selectedSeats, { ...clickedSeat, status: "selected" }]
+    const updatedSeats = seats.map((seat) => 
+      seat.id === clickedSeat.id ? { ...seat, status: "selected" as const } : seat
+    ) as Seat[]
+    const updatedSelectedSeats = [...selectedSeats, { ...clickedSeat, status: "selected" as const }] as Seat[]
 
     setSeats(updatedSeats)
     setSelectedSeats(updatedSelectedSeats)
@@ -221,14 +229,10 @@ export default function SeatSelectionPage() {
 
     // If we were adding a new passenger and canceled, deselect the seat
     if (!isEditing && currentSeat && !passengerDetails[currentSeat]) {
-      const updatedSeats = seats.map((seat) => (seat.number === currentSeat ? { ...seat, status: "available" } : seat))
+      const updatedSeats = seats.map((seat) => 
+        seat.number === currentSeat ? { ...seat, status: "available" as const } : seat
+      ) as Seat[]
       const updatedSelectedSeats = selectedSeats.filter((seat) => seat.number !== currentSeat)
-
-      setSeats(updatedSeats)
-      setSelectedSeats(updatedSelectedSeats)
-    }
-
-    setCurrentSeat(null)
   }
 
   const handleSavePassenger = (data: PassengerDetails) => {
